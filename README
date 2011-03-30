@@ -1,0 +1,1 @@
+Rackertools is a collection of tools meant to make common troubleshooting tasks easy and more informative.  Legacy tools are located in vendor/legacy/ and will be ported to Python initially with other ports potentially coming in the future.
