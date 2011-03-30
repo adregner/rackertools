@@ -1,0 +1,3 @@
+[submodule "vendor/pycolorize"]
+	path = vendor/pycolorize
+	url = git://github.com/alunduil/pycolorize.git
