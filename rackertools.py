@@ -24,15 +24,9 @@ from sys import argv, exit
 
 from rackertools import RackerTools, RackerToolsException
 
-try:
-    import pycolorize
-except:
-    sys.path.append(os.path.dirname(__file__) + "/vendor/pycolorize")
-    import pycolorize
-
 if __name__ == "__main__":
     try:
-        application = RackerTools(argv)
+        application = RackerTools(argv[1:])
         application.Run()
     except RackerToolsException, e:
         if (len(e.GetMessage()) > 0): pycolorize.error(e.GetMessage())
