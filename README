@@ -1,1 +1,5 @@
 Rackertools is a collection of tools meant to make common troubleshooting tasks easy and more informative.  Legacy tools are located in vendor/legacy/ and will be ported to Python initially with other ports potentially coming in the future.
+
+There is one application/tool built into this at the moment and it is a proof of concept of a tool to look up and cross reference domain DNS/IP information.  it requires the "python-pythondns" package.  Developed on a Ubuntu 11.04 machine.  Call it like this:
+
+./rackertools.py domain rackspace.com google.com github.com [...]
