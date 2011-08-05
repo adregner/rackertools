@@ -1,29 +1,52 @@
 
 import dns.resolver
+import dns.reversename
+
+def _clean_query(domain, rtype):
+    answer = ()
+    try:
+        answer = dns.resolver.query(domain, rtype)
+    except dns.resolver.NXDOMAIN:
+        pass
+    except dns.resolver.NoAnswer:
+        pass
+    except dns.exception.Timeout:
+        pass
+    return answer
+
+def _get_ptr(ip_address):
+    reverse = _clean_query(dns.reversename.from_address(ip_address), 'PTR')
+    ptr = reverse[0].target if reverse else "NO PTR RECORD"
+    return ptr
 
 def run(args):
     for domain in args:
         print '------------', domain, '------------'
+        
+        ns = _clean_query(domain, 'NS')
+        a = _clean_query(domain, 'A')
+        mx = _clean_query(domain, 'MX')
+        txt = _clean_query(domain, 'TXT')
 
-        try:
-            for rdata in dns.resolver.query(domain, 'NS'):
+        if ns:
+            for rdata in ns:
                 print "NS =", rdata.target
-        except dns.resolver.NoAnswer:
+        else:
             print "NO NS RECORD"
 
         print
 
-        try:
-            for rdata in dns.resolver.query(domain, 'A'):
-                print "A =", rdata.address
-        except dns.resolver.NoAnswer:
+        if a:
+            for rdata in a:
+                print "A = %s (%s)" % (rdata.address, _get_ptr(rdata.address))
+        else:
             print "NO A RECORD"
 
         print
 
-        try:
+        if mx:
             mxers = {}
-            for rdata in dns.resolver.query(domain, 'MX'):
+            for rdata in mx:
                 if rdata.preference not in mxers:
                     mxers[rdata.preference] = []
                 mxers[rdata.preference].append(rdata.exchange)
@@ -31,16 +54,23 @@ def run(args):
             preferences.sort()
             for p in preferences:
                 for mxer in mxers[p]:
-                    print "MX (%s) = " % p, mxer
-        except dns.resolver.NoAnswer:
+                    mx_line = "MX (%s) = " % p
+                    print mx_line, mxer
+                    mx_a = _clean_query(mxer, 'A')
+                    if mx_a:
+                        for rdata in mx_a:
+                            print ' '*len(mx_line), "%s (%s)" % (rdata.address, _get_ptr(rdata.address))
+                    else:
+                        print "NO A RECORD FOR THIS MAIL EXCHANGE"
+        else:
             print "NO MX RECORDS"
 
         print
 
-        try:
-            for rdata in dns.resolver.query(domain, 'TXT'):
+        if txt:
+            for rdata in txt:
                 print "TXT =", rdata.strings
-        except dns.resolver.NoAnswer:
+        else:
             print "NO TXT RECORDS"
 
         print
