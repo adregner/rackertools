@@ -1,6 +1,12 @@
 
+import re
+import sys
+
+sys.path.append('vendor/')
+
 import dns.resolver
 import dns.reversename
+from whois import NICClient
 
 def _clean_query(domain, rtype):
     answer = ()
@@ -19,7 +25,20 @@ def _get_ptr(ip_address):
     ptr = reverse[0].target if reverse else "NO PTR RECORD"
     return ptr
 
+def _get_isp(ip_address, nic_client):
+    isps = {}
+    whois_response = nic_client.whois_lookup({}, "n %s"%ip_address, NICClient.WHOIS_RECURSE)
+    for line in whois_response.split("\n"):
+        m = re.search('(.+) \((NET-[0-9-]+)\)', line)
+        if m:
+            isps[m.group(2)] = m.group(1)
+    nets = isps.keys()
+    nets.sort()
+    return isps[nets[-1]]
+
 def run(args):
+    nic_client = NICClient()
+    
     for domain in args:
         print '------------', domain, '------------'
         
@@ -39,6 +58,7 @@ def run(args):
         if a:
             for rdata in a:
                 print "A = %s (%s)" % (rdata.address, _get_ptr(rdata.address))
+                print "    %s" % _get_isp(rdata.address, nic_client)
         else:
             print "NO A RECORD"
 
