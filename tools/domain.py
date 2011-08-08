@@ -8,6 +8,9 @@ import dns.resolver
 import dns.reversename
 from whois import NICClient
 
+DOMAIN_CACHE = {}
+NIC_CLIENT = None
+
 def _clean_query(domain, rtype):
     answer = ()
     try:
@@ -20,14 +23,34 @@ def _clean_query(domain, rtype):
         pass
     return answer
 
+def _cache_result(name, rtype=""):
+    global DOMAIN_CACHE
+    cache_key = "%s\0%s" % (name, rtype) if rtype else name
+    if cache_key in DOMAIN_CACHE:
+        # cache hit
+        return DOMAIN_CACHE[cache_key]
+    else:
+        if rtype:
+            # query is for DNS records
+            if rtype == 'PTR':
+                DOMAIN_CACHE[cache_key] = _get_ptr(name)
+            else:
+                DOMAIN_CACHE[cache_key] = _clean_query(name, rtype)
+            return DOMAIN_CACHE[cache_key]
+        else:
+            #query is for a isp of an ip address
+            DOMAIN_CACHE[cache_key] = _get_isp(name)
+            return DOMAIN_CACHE[cache_key]
+
 def _get_ptr(ip_address):
     reverse = _clean_query(dns.reversename.from_address(ip_address), 'PTR')
     ptr = reverse[0].target if reverse else "NO PTR RECORD"
     return ptr
 
-def _get_isp(ip_address, nic_client):
+def _get_isp(ip_address):
+    global NIC_CLIENT
     isps = {}
-    whois_response = nic_client.whois_lookup({}, "n %s"%ip_address, NICClient.WHOIS_RECURSE)
+    whois_response = NIC_CLIENT.whois_lookup({}, "n %s"%ip_address, NICClient.WHOIS_RECURSE)
     for line in whois_response.split("\n"):
         m = re.search('(.+) \((NET-[0-9-]+)\)', line)
         if m:
@@ -37,15 +60,18 @@ def _get_isp(ip_address, nic_client):
     return isps[nets[-1]]
 
 def run(args):
-    nic_client = NICClient()
+    global NIC_CLIENT
+    
+    if NIC_CLIENT is None:
+        NIC_CLIENT = NICClient()
     
     for domain in args:
         print '------------', domain, '------------'
         
-        ns = _clean_query(domain, 'NS')
-        a = _clean_query(domain, 'A')
-        mx = _clean_query(domain, 'MX')
-        txt = _clean_query(domain, 'TXT')
+        ns = _cache_result(domain, 'NS')
+        a = _cache_result(domain, 'A')
+        mx = _cache_result(domain, 'MX')
+        txt = _cache_result(domain, 'TXT')
 
         if ns:
             for rdata in ns:
@@ -57,8 +83,8 @@ def run(args):
 
         if a:
             for rdata in a:
-                print "A = %s (%s)" % (rdata.address, _get_ptr(rdata.address))
-                print "    %s" % _get_isp(rdata.address, nic_client)
+                print "A = %s (%s)" % (rdata.address, _cache_result(rdata.address, 'PTR'))
+                print "    %s" % _cache_result(rdata.address)
         else:
             print "NO A RECORD"
 
@@ -76,10 +102,10 @@ def run(args):
                 for mxer in mxers[p]:
                     mx_line = "MX (%s) = " % p
                     print mx_line, mxer
-                    mx_a = _clean_query(mxer, 'A')
+                    mx_a = _cache_result(mxer, 'A')
                     if mx_a:
                         for rdata in mx_a:
-                            print ' '*len(mx_line), "%s (%s)" % (rdata.address, _get_ptr(rdata.address))
+                            print ' '*len(mx_line), "%s (%s)" % (rdata.address, _cache_result(rdata.address))
                     else:
                         print "NO A RECORD FOR THIS MAIL EXCHANGE"
         else:
