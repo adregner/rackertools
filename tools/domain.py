@@ -70,6 +70,7 @@ def run(args):
         
         ns = _cache_result(domain, 'NS')
         a = _cache_result(domain, 'A')
+        cname = _cache_result(domain, 'CNAME')
         mx = _cache_result(domain, 'MX')
         txt = _cache_result(domain, 'TXT')
 
@@ -86,7 +87,16 @@ def run(args):
                 print "A = %s (%s)" % (rdata.address, _cache_result(rdata.address, 'PTR'))
                 print "    %s" % _cache_result(rdata.address)
         else:
-            print "NO A RECORD"
+            print "NO A RECORDS"
+
+        print
+
+        if cname:
+            for rdata in cname:
+                print "CNAME = %s" % rdata.target
+                args.append(rdata.target)
+        else:
+            print "NO CNAME RECORDS"
 
         print
 
